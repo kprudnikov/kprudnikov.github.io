@@ -14,6 +14,31 @@
             <p id="finalScore">Score: 0</p>
             <button id="restartButton">Restart Game</button>
         </div>
+        
+        <!-- Mobile Controls -->
+        <div class="mobile-controls" id="mobileControls">
+            <!-- Left side: Virtual joystick and jump button -->
+            <div class="joystick-container" id="joystickContainer">
+                <div class="joystick" id="joystick"></div>
+            </div>
+            <div class="jump-button" id="jumpButton">JUMP</div>
+            
+            <!-- Right side: Shoot and reload buttons -->
+            <div class="action-buttons">
+                <div class="shoot-button" id="shootButton">SHOOT</div>
+                <div class="reload-button" id="reloadButton">RELOAD</div>
+            </div>
+        </div>
+        
+        <!-- Orientation warning for portrait mode -->
+        <div class="orientation-warning" id="orientationWarning">
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="white">
+                <path d="M16,1H8C6.34,1,5,2.34,5,4v16c0,1.66,1.34,3,3,3h8c1.66,0,3-1.34,3-3V4C19,2.34,17.66,1,16,1z M17,18 c0,0.55-0.45,1-1,1H8c-0.55,0-1-0.45-1-1V6c0-0.55,0.45-1,1-1h8c0.55,0,1,0.45,1,1V18z"/>
+                <path d="M 12 16.5 m -1, 0 a 1,1 0 1,0 2,0 a 1,1 0 1,0 -2,0" />
+            </svg>
+            <h2>Please Rotate Your Device</h2>
+            <p>This game works best in landscape mode</p>
+        </div>
     </div>
     <script src="game.js"></script>
 </body>

@@ -29,6 +29,17 @@ let cameraY = 0;
 let clouds = [];
 let respawnTimer = 0;
 
+// Mobile controls variables
+let isMobile = false;
+let joystickActive = false;
+let joystickStartX = 0;
+let joystickStartY = 0;
+let joystickCurrentX = 0;
+let joystickCurrentY = 0;
+let jumpActive = false;
+let shootActive = false;
+let reloadActive = false;
+
 // Game objects
 class Player {
     constructor() {
@@ -623,15 +634,30 @@ function drawInstructionsBox() {
     ctx.fillText('CONTROLS:', boxX + 10, boxY + 25);
     
     ctx.font = '14px Arial';
-    const instructions = [
-        'A/D - Move left/right',
-        'SPACE - Jump',
-        'ENTER - Shoot',
-        'R - Reload weapon',
-        '',
-        'Defeat enemies to score points!',
-        'Watch out for yellow enemies!'
-    ];
+    
+    // Different instructions based on device
+    let instructions;
+    if (isMobile) {
+        instructions = [
+            'Left joystick - Move left/right',
+            'JUMP button - Jump',
+            'SHOOT button - Shoot',
+            'RELOAD button - Reload weapon',
+            '',
+            'Defeat enemies to score points!',
+            'Watch out for yellow enemies!'
+        ];
+    } else {
+        instructions = [
+            'A/D - Move left/right',
+            'SPACE - Jump',
+            'ENTER - Shoot',
+            'R - Reload weapon',
+            '',
+            'Defeat enemies to score points!',
+            'Watch out for yellow enemies!'
+        ];
+    }
     
     instructions.forEach((text, index) => {
         ctx.fillText(text, boxX + 10, boxY + 50 + (index * 18));
@@ -739,6 +765,9 @@ function init() {
     // Create clouds
     createClouds();
     
+    // Detect if user is on mobile device
+    detectMobileDevice();
+    
     // Set up event listeners
     window.addEventListener('keydown', function(e) {
         keys[e.key.toLowerCase()] = true;
@@ -774,6 +803,13 @@ function init() {
         keyCodes[e.keyCode] = false; // Update key code state
     });
     
+    // Set up mobile controls
+    setupMobileControls();
+    
+    // Handle orientation changes
+    window.addEventListener('orientationchange', handleOrientationChange);
+    window.addEventListener('resize', handleOrientationChange);
+    
     // Set up restart button
     document.getElementById('restartButton').addEventListener('click', restartGame);
     
@@ -789,6 +825,183 @@ function updateCamera() {
     // Keep camera within world bounds
     cameraX = Math.max(0, Math.min(cameraX, WORLD_WIDTH - CANVAS_WIDTH));
     cameraY = Math.max(0, Math.min(cameraY, WORLD_HEIGHT - CANVAS_HEIGHT));
+}
+
+// Mobile controls functions
+function detectMobileDevice() {
+    // Check if the device is a mobile device
+    isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+               (window.innerWidth <= 1024 && 'ontouchstart' in window);
+    
+    // Show/hide mobile controls based on detection
+    const mobileControls = document.getElementById('mobileControls');
+    if (mobileControls) {
+        mobileControls.style.display = isMobile ? 'block' : 'none';
+    }
+    
+    // Check orientation on mobile
+    if (isMobile) {
+        handleOrientationChange();
+    }
+}
+
+function handleOrientationChange() {
+    if (!isMobile) return;
+    
+    const orientationWarning = document.getElementById('orientationWarning');
+    if (window.innerHeight > window.innerWidth) {
+        // Portrait mode
+        if (orientationWarning) orientationWarning.style.display = 'flex';
+    } else {
+        // Landscape mode
+        if (orientationWarning) orientationWarning.style.display = 'none';
+    }
+}
+
+function setupMobileControls() {
+    // Joystick controls
+    const joystickContainer = document.getElementById('joystickContainer');
+    const joystick = document.getElementById('joystick');
+    
+    if (joystickContainer && joystick) {
+        // Touch start - initialize joystick position
+        joystickContainer.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = joystickContainer.getBoundingClientRect();
+            
+            joystickStartX = rect.left + rect.width / 2;
+            joystickStartY = rect.top + rect.height / 2;
+            joystickCurrentX = touch.clientX;
+            joystickCurrentY = touch.clientY;
+            
+            // Calculate joystick position within container
+            const deltaX = touch.clientX - joystickStartX;
+            const deltaY = touch.clientY - joystickStartY;
+            const distance = Math.min(rect.width / 2 - joystick.offsetWidth / 2, Math.sqrt(deltaX * deltaX + deltaY * deltaY));
+            const angle = Math.atan2(deltaY, deltaX);
+            
+            const newX = distance * Math.cos(angle);
+            const newY = distance * Math.sin(angle);
+            
+            joystick.style.transform = `translate(${newX}px, ${newY}px)`;
+            joystickActive = true;
+            
+            // Set movement based on joystick position
+            if (deltaX < -10) {
+                keyCodes[37] = true; // Left arrow
+                keyCodes[39] = false; // Right arrow
+                playerLastDirection = -1;
+            } else if (deltaX > 10) {
+                keyCodes[39] = true; // Right arrow
+                keyCodes[37] = false; // Left arrow
+                playerLastDirection = 1;
+            } else {
+                keyCodes[37] = false;
+                keyCodes[39] = false;
+            }
+        });
+        
+        // Touch move - update joystick position
+        joystickContainer.addEventListener('touchmove', function(e) {
+            if (!joystickActive) return;
+            e.preventDefault();
+            
+            const touch = e.touches[0];
+            const rect = joystickContainer.getBoundingClientRect();
+            
+            joystickCurrentX = touch.clientX;
+            joystickCurrentY = touch.clientY;
+            
+            // Calculate joystick position within container
+            const deltaX = touch.clientX - joystickStartX;
+            const deltaY = touch.clientY - joystickStartY;
+            const distance = Math.min(rect.width / 2 - joystick.offsetWidth / 2, Math.sqrt(deltaX * deltaX + deltaY * deltaY));
+            const angle = Math.atan2(deltaY, deltaX);
+            
+            const newX = distance * Math.cos(angle);
+            const newY = distance * Math.sin(angle);
+            
+            joystick.style.transform = `translate(${newX}px, ${newY}px)`;
+            
+            // Set movement based on joystick position
+            if (deltaX < -10) {
+                keyCodes[37] = true; // Left arrow
+                keyCodes[39] = false; // Right arrow
+                playerLastDirection = -1;
+            } else if (deltaX > 10) {
+                keyCodes[39] = true; // Right arrow
+                keyCodes[37] = false; // Left arrow
+                playerLastDirection = 1;
+            } else {
+                keyCodes[37] = false;
+                keyCodes[39] = false;
+            }
+        });
+        
+        // Touch end - reset joystick
+        joystickContainer.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            joystick.style.transform = 'translate(0px, 0px)';
+            joystickActive = false;
+            
+            // Reset movement keys
+            keyCodes[37] = false; // Left arrow
+            keyCodes[39] = false; // Right arrow
+        });
+    }
+    
+    // Jump button
+    const jumpButton = document.getElementById('jumpButton');
+    if (jumpButton) {
+        jumpButton.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            jumpActive = true;
+            keyCodes[32] = true; // Space key
+            jumpButton.classList.add('active');
+        });
+        
+        jumpButton.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            jumpActive = false;
+            keyCodes[32] = false; // Space key
+            jumpButton.classList.remove('active');
+        });
+    }
+    
+    // Shoot button
+    const shootButton = document.getElementById('shootButton');
+    if (shootButton) {
+        shootButton.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            shootActive = true;
+            player.shoot();
+            shootButton.classList.add('active');
+        });
+        
+        shootButton.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            shootActive = false;
+            shootButton.classList.remove('active');
+        });
+    }
+    
+    // Reload button
+    const reloadButton = document.getElementById('reloadButton');
+    if (reloadButton) {
+        reloadButton.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            reloadActive = true;
+            player.reload();
+            reloadButton.classList.add('active');
+        });
+        
+        reloadButton.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            reloadActive = false;
+            reloadButton.classList.remove('active');
+        });
+    }
 }
 
 // Initialize global enemy bullets array
