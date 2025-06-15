@@ -18,6 +18,7 @@ let canvas, ctx;
 let player;
 let enemies = [];
 let keys = {};
+let keyCodes = {}; // For language-agnostic controls
 let gameOver = false;
 let gameWon = false;
 let score = 0;
@@ -52,19 +53,21 @@ class Player {
 
         // Horizontal movement
         this.velX = 0;
-        if (keys['a'] || keys['ArrowLeft']) {
+        // Left movement - A key (65) or Left Arrow (37)
+        if (keyCodes[65] || keyCodes[37]) {
             this.velX = -this.speed;
             // Update player direction for enemy spawning
             if (playerLastDirection !== -1) playerLastDirection = -1;
         }
-        if (keys['d'] || keys['ArrowRight']) {
+        // Right movement - D key (68) or Right Arrow (39)
+        if (keyCodes[68] || keyCodes[39]) {
             this.velX = this.speed;
             // Update player direction for enemy spawning
             if (playerLastDirection !== 1) playerLastDirection = 1;
         }
 
-        // Jumping
-        if ((keys['w'] || keys['ArrowUp'] || keys[' '] || keys['Space']) && !this.isJumping) {
+        // Jumping - W key (87), Up Arrow (38), or Space (32)
+        if ((keyCodes[87] || keyCodes[38] || keyCodes[32]) && !this.isJumping) {
             this.velY = -this.jumpPower;
             this.isJumping = true;
         }
@@ -602,7 +605,7 @@ function drawInstructionsBox() {
     const boxX = CANVAS_WIDTH - 250;
     const boxY = 40;
     const boxWidth = 240;
-    const boxHeight = 150;
+    const boxHeight = 170;
     
     // Draw semi-transparent background
     ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
@@ -686,6 +689,8 @@ function restartGame() {
     gameOver = false;
     gameWon = false;
     score = 0;
+    keys = {};
+    keyCodes = {}; // Reset key states
     
     // Create enemies
     createEnemies();
@@ -737,16 +742,17 @@ function init() {
     // Set up event listeners
     window.addEventListener('keydown', function(e) {
         keys[e.key.toLowerCase()] = true;
+        keyCodes[e.keyCode] = true; // Store key code for language-agnostic controls
         
         // Space is for jumping (handled in player.update)
         
-        // Shoot with Enter
-        if (e.key === 'Enter') {
+        // Shoot with Enter (keyCode 13)
+        if (e.keyCode === 13) {
             player.shoot();
         }
         
-        // Reload with R
-        if (e.key.toLowerCase() === 'r') {
+        // Reload with R (keyCode 82)
+        if (e.keyCode === 82) {
             player.reload();
         }
     });
@@ -765,6 +771,7 @@ function init() {
     
     window.addEventListener('keyup', function(e) {
         keys[e.key.toLowerCase()] = false;
+        keyCodes[e.keyCode] = false; // Update key code state
     });
     
     // Set up restart button
