@@ -195,21 +195,12 @@ class Enemy {
                 this.x -= this.speed;
             }
             
-            // Only move vertically if player is not too high above ground
-            // This prevents yellow enemies from flying when player jumps
-            const playerGroundDistance = WORLD_HEIGHT - GROUND_HEIGHT - (player.y + player.height);
+            // Yellow enemies should NEVER follow the player vertically
+            // They should always stay on the ground
             
-            if (playerGroundDistance < 100) { // Only follow player vertically if they're close to ground
-                if (this.y < player.y) {
-                    this.y += this.speed;
-                } else {
-                    this.y -= this.speed;
-                }
-            } else {
-                // Move back to ground level if player is jumping
-                if (this.y + this.height < WORLD_HEIGHT - GROUND_HEIGHT) {
-                    this.y += this.speed; // Fall back down
-                }
+            // Always move back to ground level
+            if (this.y + this.height < WORLD_HEIGHT - GROUND_HEIGHT) {
+                this.y += this.speed * 2; // Fall back down faster
             }
             
             // Ensure enemy stays on the ground
@@ -497,6 +488,9 @@ function checkCollision(obj1, obj2) {
            obj1.y + obj1.height > obj2.y;
 }
 
+// Create a global array to store all enemy bullets
+let allEnemyBullets = [];
+
 function checkBulletCollisions() {
     // Check player bullets with enemies
     for (let i = player.bullets.length - 1; i >= 0; i--) {
@@ -509,13 +503,21 @@ function checkBulletCollisions() {
                 // Collision detected
                 player.bullets.splice(i, 1);
                 score += enemy.points;
+                
+                // Transfer enemy bullets to global array before removing enemy
+                for (const enemyBullet of enemy.bullets) {
+                    allEnemyBullets.push(enemyBullet);
+                }
+                enemy.bullets = []; // Clear enemy bullets to avoid duplicates
+                
+                // Remove the enemy
                 enemies.splice(j, 1);
                 break;
             }
         }
     }
     
-    // Check enemy bullets with player
+    // Check enemy bullets with player (from active enemies)
     for (let i = 0; i < enemies.length; i++) {
         const enemy = enemies[i];
         
@@ -528,6 +530,24 @@ function checkBulletCollisions() {
                 player.alive = false;
                 break;
             }
+        }
+    }
+    
+    // Check global enemy bullets with player
+    for (let j = allEnemyBullets.length - 1; j >= 0; j--) {
+        const bullet = allEnemyBullets[j];
+        
+        // Update bullet
+        if (bullet.update()) {
+            // Remove if off-screen
+            allEnemyBullets.splice(j, 1);
+            continue;
+        }
+        
+        if (checkCollision(bullet, player)) {
+            // Collision detected
+            allEnemyBullets.splice(j, 1);
+            player.alive = false;
         }
     }
 }
@@ -679,6 +699,9 @@ function updateCamera() {
     cameraY = Math.max(0, Math.min(cameraY, WORLD_HEIGHT - CANVAS_HEIGHT));
 }
 
+// Initialize global enemy bullets array
+allEnemyBullets = [];
+
 function gameLoop() {
     // Update camera position
     updateCamera();
@@ -726,6 +749,11 @@ function gameLoop() {
     // Draw enemies
     for (const enemy of enemies) {
         enemy.draw();
+    }
+    
+    // Draw global enemy bullets
+    for (const bullet of allEnemyBullets) {
+        bullet.draw();
     }
     
     // Restore the transformation matrix to draw HUD elements without translation
