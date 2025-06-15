@@ -573,6 +573,66 @@ function drawHUD() {
     const scoreText = `Score: ${score}`;
     const scoreTextWidth = ctx.measureText(scoreText).width;
     ctx.fillText(scoreText, CANVAS_WIDTH / 2 - scoreTextWidth / 2, 30);
+    
+    // Draw instructions box in top right corner
+    drawInstructionsBox();
+}
+
+// Helper function to draw rounded rectangles
+function drawRoundedRect(ctx, x, y, width, height, radius, fill) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+    
+    if (fill) {
+        ctx.fill();
+    }
+}
+
+function drawInstructionsBox() {
+    // Position the box in the top right corner, under the enemies count
+    const boxX = CANVAS_WIDTH - 250;
+    const boxY = 40;
+    const boxWidth = 240;
+    const boxHeight = 150;
+    
+    // Draw semi-transparent background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    drawRoundedRect(ctx, boxX, boxY, boxWidth, boxHeight, 10, true);
+    
+    // Draw border
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.lineWidth = 2;
+    drawRoundedRect(ctx, boxX, boxY, boxWidth, boxHeight, 10, false);
+    ctx.stroke();
+    
+    // Draw instructions text
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 16px Arial';
+    ctx.fillText('CONTROLS:', boxX + 10, boxY + 25);
+    
+    ctx.font = '14px Arial';
+    const instructions = [
+        'A/D - Move left/right',
+        'SPACE - Jump',
+        'ENTER - Shoot',
+        'R - Reload weapon',
+        '',
+        'Defeat enemies to score points!',
+        'Watch out for yellow enemies!'
+    ];
+    
+    instructions.forEach((text, index) => {
+        ctx.fillText(text, boxX + 10, boxY + 50 + (index * 18));
+    });
 }
 
 function showGameOver() {
@@ -589,6 +649,31 @@ function showGameOver() {
     }
     
     finalScoreElement.textContent = `Score: ${score}`;
+    
+    // Add instructions to the game over screen
+    const instructionsElement = document.getElementById('gameInstructions');
+    if (!instructionsElement) {
+        const instructions = document.createElement('p');
+        instructions.id = 'gameInstructions';
+        instructions.innerHTML = `
+            <strong>CONTROLS:</strong><br>
+            A/D - Move left/right<br>
+            SPACE - Jump<br>
+            ENTER - Shoot<br>
+            R - Reload weapon<br><br>
+            Defeat enemies to score points!<br>
+            Watch out for yellow enemies with knives!
+        `;
+        instructions.style.color = 'white';
+        instructions.style.textAlign = 'center';
+        instructions.style.marginTop = '10px';
+        instructions.style.fontSize = '14px';
+        instructions.style.maxWidth = '300px';
+        
+        // Insert before the restart button
+        const restartButton = document.getElementById('restartButton');
+        gameOverElement.insertBefore(instructions, restartButton);
+    }
 }
 
 function restartGame() {
