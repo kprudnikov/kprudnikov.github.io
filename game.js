@@ -7,11 +7,11 @@ const GRAVITY = 0.8;
 const GROUND_HEIGHT = 50;
 const PLAYER_SIZE = 64;
 const BULLET_RANGE = Infinity; // Infinite bullet range
-const BULLET_SPEED = 10; // Slower bullets
+const BULLET_SPEED = 9; // Decreased by 10%
 const BULLET_WIDTH = 16;
 const BULLET_HEIGHT = 18;
 const MAX_BULLETS = 14;
-const RELOAD_TIME = 2500; // 2.5 seconds in milliseconds
+const RELOAD_TIME = 500; // 0.5 seconds in milliseconds
 
 // Game variables
 let canvas, ctx;
@@ -64,7 +64,7 @@ class Player {
         }
 
         // Jumping
-        if ((keys['w'] || keys['ArrowUp']) && !this.isJumping) {
+        if ((keys['w'] || keys['ArrowUp'] || keys[' '] || keys['Space']) && !this.isJumping) {
             this.velY = -this.jumpPower;
             this.isJumping = true;
         }
@@ -104,17 +104,19 @@ class Player {
     shoot() {
         if (!this.alive || this.isReloading || this.bulletCount <= 0) return;
         
-        // Calculate direction towards mouse cursor (adjusted for camera position)
-        const worldMouseX = mouseX + cameraX;
-        const worldMouseY = mouseY + cameraY;
+        // Direction based on player's last direction
+        let vx, vy;
         
-        const dx = worldMouseX - (this.x + this.width / 2);
-        const dy = worldMouseY - (this.y + this.height / 2);
-        const distance = Math.max(1, Math.sqrt(dx * dx + dy * dy)); // Avoid division by zero
-        
-        // Normalize and scale by bullet speed
-        const vx = dx / distance * BULLET_SPEED;
-        const vy = dy / distance * BULLET_SPEED;
+        // Horizontal direction based on player movement
+        if (playerLastDirection === 1) {
+            // Shooting right
+            vx = BULLET_SPEED;
+            vy = 0; // No vertical component
+        } else {
+            // Shooting left
+            vx = -BULLET_SPEED;
+            vy = 0; // No vertical component
+        }
         
         const bullet = new Bullet(
             this.x + this.width / 2,
@@ -140,9 +142,15 @@ class Player {
         ctx.fillStyle = 'blue';
         ctx.fillRect(this.x, this.y, this.width, this.height);
         
-        // Draw tiny pistol
+        // Draw tiny pistol based on direction
         ctx.fillStyle = 'black';
-        ctx.fillRect(this.x + this.width - 10, this.y + this.height / 2 - 5, 15, 10);
+        if (playerLastDirection === 1) {
+            // Gun pointing right
+            ctx.fillRect(this.x + this.width - 10, this.y + this.height / 2 - 5, 15, 10);
+        } else {
+            // Gun pointing left
+            ctx.fillRect(this.x - 5, this.y + this.height / 2 - 5, 15, 10);
+        }
         
         // Draw bullets
         for (const bullet of this.bullets) {
@@ -187,10 +195,26 @@ class Enemy {
                 this.x -= this.speed;
             }
             
-            if (this.y < player.y) {
-                this.y += this.speed;
+            // Only move vertically if player is not too high above ground
+            // This prevents yellow enemies from flying when player jumps
+            const playerGroundDistance = WORLD_HEIGHT - GROUND_HEIGHT - (player.y + player.height);
+            
+            if (playerGroundDistance < 100) { // Only follow player vertically if they're close to ground
+                if (this.y < player.y) {
+                    this.y += this.speed;
+                } else {
+                    this.y -= this.speed;
+                }
             } else {
-                this.y -= this.speed;
+                // Move back to ground level if player is jumping
+                if (this.y + this.height < WORLD_HEIGHT - GROUND_HEIGHT) {
+                    this.y += this.speed; // Fall back down
+                }
+            }
+            
+            // Ensure enemy stays on the ground
+            if (this.y + this.height > WORLD_HEIGHT - GROUND_HEIGHT) {
+                this.y = WORLD_HEIGHT - GROUND_HEIGHT - this.height;
             }
             
             // Check collision with player (knife attack)
@@ -609,8 +633,10 @@ function init() {
     window.addEventListener('keydown', function(e) {
         keys[e.key.toLowerCase()] = true;
         
-        // Shoot with space
-        if (e.key === ' ' || e.code === 'Space') {
+        // Space is for jumping (handled in player.update)
+        
+        // Shoot with Enter
+        if (e.key === 'Enter') {
             player.shoot();
         }
         
@@ -627,11 +653,9 @@ function init() {
         mouseY = e.clientY - rect.top;
     });
     
-    // Shoot on mouse click
+    // No longer shooting on mouse click
     canvas.addEventListener('mousedown', function(e) {
-        if (e.button === 0) { // Left mouse button
-            player.shoot();
-        }
+        // Mouse click functionality removed
     });
     
     window.addEventListener('keyup', function(e) {

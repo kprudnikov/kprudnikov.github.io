@@ -1,4 +1,5 @@
-you are creating a 2D platformer game using javascript.
+you are creating a 2D platformer game using javascript. this must be a browser game that can be ran locally
+
 
 Main character:
 a 64x64 pixel blue square with a tiny pistol
@@ -30,4 +31,3 @@ enemies:
  red enemy - 100 points
  green enemy - 75 points
  yellow enemy - 200 points
- 
