@@ -870,6 +870,18 @@ function init() {
     // Set up restart button
     document.getElementById('restartButton').addEventListener('click', restartGame);
     
+    // Set up fullscreen button
+    const fullscreenButton = document.getElementById('fullscreenButton');
+    if (fullscreenButton) {
+        fullscreenButton.addEventListener('click', toggleFullscreen);
+    }
+    
+    // Listen for fullscreen changes to update button appearance
+    document.addEventListener('fullscreenchange', updateFullscreenButtonState);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenButtonState);
+    document.addEventListener('mozfullscreenchange', updateFullscreenButtonState);
+    document.addEventListener('MSFullscreenChange', updateFullscreenButtonState);
+    
     // Start game loop
     requestAnimationFrame(gameLoop);
 }
@@ -928,6 +940,92 @@ function handleOrientationChange() {
         if (orientationWarning) orientationWarning.style.display = 'none';
     }
 }
+
+// Store original canvas dimensions
+let originalCanvasWidth = CANVAS_WIDTH;
+let originalCanvasHeight = CANVAS_HEIGHT;
+
+// Fullscreen functionality
+function toggleFullscreen() {
+    const gameContainer = document.querySelector('.game-container');
+    
+    if (!document.fullscreenElement && 
+        !document.mozFullScreenElement && 
+        !document.webkitFullscreenElement && 
+        !document.msFullscreenElement) {
+        // Enter fullscreen
+        if (gameContainer.requestFullscreen) {
+            gameContainer.requestFullscreen();
+        } else if (gameContainer.mozRequestFullScreen) { // Firefox
+            gameContainer.mozRequestFullScreen();
+        } else if (gameContainer.webkitRequestFullscreen) { // Chrome, Safari and Opera
+            gameContainer.webkitRequestFullscreen();
+        } else if (gameContainer.msRequestFullscreen) { // IE/Edge
+            gameContainer.msRequestFullscreen();
+        }
+    } else {
+        // Exit fullscreen
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.mozCancelFullScreen) { // Firefox
+            document.mozCancelFullScreen();
+        } else if (document.webkitExitFullscreen) { // Chrome, Safari and Opera
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) { // IE/Edge
+            document.msExitFullscreen();
+        }
+    }
+}
+
+function updateFullscreenButtonState() {
+    const fullscreenButton = document.getElementById('fullscreenButton');
+    const canvas = document.getElementById('gameCanvas');
+    
+    if (document.fullscreenElement || 
+        document.mozFullScreenElement || 
+        document.webkitFullscreenElement || 
+        document.msFullscreenElement) {
+        // In fullscreen mode
+        fullscreenButton.classList.add('active');
+        
+        // Resize canvas to fill the screen
+        resizeCanvas();
+    } else {
+        // Not in fullscreen mode
+        fullscreenButton.classList.remove('active');
+        
+        // Reset canvas to original size
+        canvas.width = originalCanvasWidth;
+        canvas.height = originalCanvasHeight;
+    }
+}
+
+function resizeCanvas() {
+    const canvas = document.getElementById('gameCanvas');
+    
+    // Get the actual screen dimensions
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    
+    // Update canvas size
+    canvas.width = screenWidth;
+    canvas.height = screenHeight;
+    
+    // Update viewport constants for rendering
+    CANVAS_WIDTH = screenWidth;
+    CANVAS_HEIGHT = screenHeight;
+}
+
+// Listen for window resize events
+window.addEventListener('resize', function() {
+    if (document.fullscreenElement || 
+        document.mozFullScreenElement || 
+        document.webkitFullscreenElement || 
+        document.msFullscreenElement) {
+        // Only resize if in fullscreen mode
+        resizeCanvas();
+    }
+});
 
 function setupMobileControls() {
     // Joystick controls
