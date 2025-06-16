@@ -1237,18 +1237,7 @@ function gameLoop() {
     // Draw HUD
     drawHUD();
     
-    // Draw cursor crosshair (adjusted for camera position)
-    const worldMouseX = mouseX + cameraX;
-    const worldMouseY = mouseY + cameraY;
     
-    ctx.strokeStyle = 'red';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(mouseX - 10, mouseY);
-    ctx.lineTo(mouseX + 10, mouseY);
-    ctx.moveTo(mouseX, mouseY - 10);
-    ctx.lineTo(mouseX, mouseY + 10);
-    ctx.stroke();
     
     // Check lose condition
     if (!player.alive && !gameOver) {
