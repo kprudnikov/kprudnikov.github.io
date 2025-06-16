@@ -5,6 +5,7 @@ const WORLD_WIDTH = 3000; // Larger world width
 const WORLD_HEIGHT = 1200; // Larger world height
 const GRAVITY = 0.8;
 const GROUND_HEIGHT = 50;
+const MOBILE_GROUND_OFFSET = 700; // Significantly increased to ensure horizon appears in the middle
 const PLAYER_SIZE = 64;
 const BULLET_RANGE = Infinity; // Infinite bullet range
 const BULLET_SPEED = 9; // Decreased by 10%
@@ -36,7 +37,7 @@ let joystickStartX = 0;
 let joystickStartY = 0;
 let joystickCurrentX = 0;
 let joystickCurrentY = 0;
-let jumpActive = false;
+let joystickJump = false; // Flag for joystick-triggered jumps
 let shootActive = false;
 let reloadActive = false;
 
@@ -46,7 +47,16 @@ class Player {
         this.width = PLAYER_SIZE;
         this.height = PLAYER_SIZE;
         this.x = 100;
-        this.y = WORLD_HEIGHT - GROUND_HEIGHT - this.height;
+        
+        // Position player based on device type
+        if (isMobile) {
+            // For mobile, position at the middle of the screen
+            // We'll set this properly in init() since cameraY isn't available here
+            this.y = WORLD_HEIGHT / 2;
+        } else {
+            this.y = WORLD_HEIGHT - GROUND_HEIGHT - this.height;
+        }
+        
         this.velX = 0;
         this.velY = 0;
         this.speed = 5;
@@ -77,11 +87,15 @@ class Player {
             if (playerLastDirection !== 1) playerLastDirection = 1;
         }
 
-        // Jumping - W key (87), Up Arrow (38), or Space (32)
-        if ((keyCodes[87] || keyCodes[38] || keyCodes[32]) && !this.isJumping) {
+        // Jumping - W key (87), Up Arrow (38), Space (32), or joystickJump flag
+        if ((keyCodes[87] || keyCodes[38] || keyCodes[32] || joystickJump) && !this.isJumping) {
             this.velY = -this.jumpPower;
             this.isJumping = true;
+            joystickJump = false; // Reset the jump flag
         }
+        
+        // Check for auto reload on mobile
+        this.checkAutoReload();
 
         // Apply gravity
         this.velY += GRAVITY;
@@ -94,9 +108,18 @@ class Player {
         if (this.x < 0) this.x = 0;
         if (this.x + this.width > WORLD_WIDTH) this.x = WORLD_WIDTH - this.width;
 
-        // Ground collision
-        if (this.y + this.height > WORLD_HEIGHT - GROUND_HEIGHT) {
-            this.y = WORLD_HEIGHT - GROUND_HEIGHT - this.height;
+        // Ground collision - adjust for mobile
+        let groundLevel;
+        
+        if (isMobile) {
+            // Use the middle of the screen for mobile
+            groundLevel = cameraY + (CANVAS_HEIGHT / 2);
+        } else {
+            groundLevel = WORLD_HEIGHT - GROUND_HEIGHT;
+        }
+            
+        if (this.y + this.height > groundLevel) {
+            this.y = groundLevel - this.height;
             this.velY = 0;
             this.isJumping = false;
         }
@@ -145,10 +168,18 @@ class Player {
     }
 
     reload() {
-        if (!this.alive || this.isReloading || this.bulletCount === MAX_BULLETS) return;
+        if (this.isReloading || this.bulletCount >= MAX_BULLETS) return;
         
         this.isReloading = true;
         this.reloadStartTime = Date.now();
+    }
+    
+    // Auto reload for mobile devices
+    checkAutoReload() {
+        // Only auto reload on mobile when out of bullets
+        if (isMobile && this.bulletCount <= 0 && !this.isReloading) {
+            this.reload();
+        }
     }
 
     draw() {
@@ -178,7 +209,16 @@ class Enemy {
         this.width = PLAYER_SIZE;
         this.height = PLAYER_SIZE;
         this.x = Math.random() * (WORLD_WIDTH - 400) + 200;
-        this.y = WORLD_HEIGHT - GROUND_HEIGHT - this.height;
+        
+        // Position enemies based on device type
+        if (isMobile) {
+            // For mobile, position at the middle of the screen
+            const middleY = cameraY + (CANVAS_HEIGHT / 2);
+            this.y = middleY - this.height;
+        } else {
+            this.y = WORLD_HEIGHT - GROUND_HEIGHT - this.height;
+        }
+        
         this.type = type; // 'red', 'green', or 'yellow'
         this.direction = Math.random() > 0.5 ? 1 : -1;
         this.bullets = [];
@@ -213,13 +253,22 @@ class Enemy {
             // They should always stay on the ground
             
             // Always move back to ground level
-            if (this.y + this.height < WORLD_HEIGHT - GROUND_HEIGHT) {
+            let groundLevel;
+            
+            if (isMobile) {
+                // Use the middle of the screen for mobile
+                groundLevel = cameraY + (CANVAS_HEIGHT / 2);
+            } else {
+                groundLevel = WORLD_HEIGHT - GROUND_HEIGHT;
+            }
+            
+            if (this.y + this.height < groundLevel) {
                 this.y += this.speed * 2; // Fall back down faster
             }
             
             // Ensure enemy stays on the ground
-            if (this.y + this.height > WORLD_HEIGHT - GROUND_HEIGHT) {
-                this.y = WORLD_HEIGHT - GROUND_HEIGHT - this.height;
+            if (this.y + this.height > groundLevel) {
+                this.y = groundLevel - this.height;
             }
             
             // Check collision with player (knife attack)
@@ -483,9 +532,17 @@ function handleEnemyRespawn() {
         // Create the enemy
         const enemy = new Enemy(enemyType);
         
+        // Always spawn on the ground - adjust for mobile
+        if (isMobile) {
+            // For mobile, spawn at the middle of the screen
+            const middleY = cameraY + (CANVAS_HEIGHT / 2);
+            enemy.y = middleY - enemy.height;
+        } else {
+            enemy.y = WORLD_HEIGHT - GROUND_HEIGHT - enemy.height;
+        }
+        
         // Set enemy position
         enemy.x = spawnX;
-        enemy.y = WORLD_HEIGHT - GROUND_HEIGHT - enemy.height;
         
         // Add to enemies array
         enemies.push(enemy);
@@ -640,9 +697,9 @@ function drawInstructionsBox() {
     if (isMobile) {
         instructions = [
             'Left joystick - Move left/right',
-            'JUMP button - Jump',
+            'Flick joystick UP - Jump',
             'SHOOT button - Shoot',
-            'RELOAD button - Reload weapon',
+            'Auto-reload when empty',
             '',
             'Defeat enemies to score points!',
             'Watch out for yellow enemies!'
@@ -842,6 +899,20 @@ function detectMobileDevice() {
     // Check orientation on mobile
     if (isMobile) {
         handleOrientationChange();
+        
+        // Reposition player and enemies for mobile
+        if (player) {
+            // Position player at the middle of the screen minus their height
+            const middleY = CANVAS_HEIGHT / 2;
+            player.y = middleY - player.height;
+        }
+        
+        // Reposition enemies
+        for (const enemy of enemies) {
+            // Position enemies at the middle of the screen minus their height
+            const middleY = CANVAS_HEIGHT / 2;
+            enemy.y = middleY - enemy.height;
+        }
     }
 }
 
@@ -900,6 +971,11 @@ function setupMobileControls() {
                 keyCodes[37] = false;
                 keyCodes[39] = false;
             }
+            
+            // Check for upward movement (jump)
+            if (deltaY < -30) { // Require significant upward movement
+                joystickJump = true;
+            }
         });
         
         // Touch move - update joystick position
@@ -937,6 +1013,11 @@ function setupMobileControls() {
                 keyCodes[37] = false;
                 keyCodes[39] = false;
             }
+            
+            // Check for upward movement (jump)
+            if (deltaY < -30) { // Require significant upward movement
+                joystickJump = true;
+            }
         });
         
         // Touch end - reset joystick
@@ -951,23 +1032,7 @@ function setupMobileControls() {
         });
     }
     
-    // Jump button
-    const jumpButton = document.getElementById('jumpButton');
-    if (jumpButton) {
-        jumpButton.addEventListener('touchstart', function(e) {
-            e.preventDefault();
-            jumpActive = true;
-            keyCodes[32] = true; // Space key
-            jumpButton.classList.add('active');
-        });
-        
-        jumpButton.addEventListener('touchend', function(e) {
-            e.preventDefault();
-            jumpActive = false;
-            keyCodes[32] = false; // Space key
-            jumpButton.classList.remove('active');
-        });
-    }
+    // Jump functionality is now handled by the joystick
     
     // Shoot button
     const shootButton = document.getElementById('shootButton');
@@ -1034,8 +1099,15 @@ function gameLoop() {
     drawClouds();
     
     // Draw ground (larger than canvas to cover the entire world)
+    // For mobile, draw ground at the middle of the screen
     ctx.fillStyle = 'black';
-    ctx.fillRect(0, WORLD_HEIGHT - GROUND_HEIGHT, WORLD_WIDTH, GROUND_HEIGHT);
+    if (isMobile) {
+        // Force the ground to be at the middle of the visible canvas
+        const middleOfScreen = cameraY + (CANVAS_HEIGHT / 2);
+        ctx.fillRect(0, middleOfScreen, WORLD_WIDTH, GROUND_HEIGHT);
+    } else {
+        ctx.fillRect(0, WORLD_HEIGHT - GROUND_HEIGHT, WORLD_WIDTH, GROUND_HEIGHT);
+    }
     
     // Update player
     player.update();
